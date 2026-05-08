@@ -16,6 +16,7 @@ Desktop.ini
 build/
 build-*/
 cmake-build-*/
+cmake-build-debug/
 data/
 CMakeFiles/
 CMakeCache.txt
