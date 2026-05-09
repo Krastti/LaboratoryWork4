@@ -2,6 +2,7 @@
 #define LABORATORYWORK4_CARDINAL_H
 
 #include <cstddef>
+#include <ostream>
 #include <stdexcept>
 
 class Cardinal {
@@ -54,6 +55,7 @@ public:
   friend bool operator<=(const Cardinal &left, const Cardinal &right);
   friend bool operator>(const Cardinal &left, const Cardinal &right);
   friend bool operator>=(const Cardinal &left, const Cardinal &right);
+  friend std::ostream& operator<<(std::ostream &stream, const Cardinal &cardinal);
 };
 
 inline Cardinal operator+(Cardinal left, const Cardinal &right) {
@@ -95,6 +97,14 @@ inline bool operator>(const Cardinal &left, const Cardinal &right) {
 
 inline bool operator>=(const Cardinal &left, const Cardinal &right) {
   return right <= left;
+}
+
+inline std::ostream& operator<<(std::ostream &stream, const Cardinal &cardinal) {
+  if (cardinal.infinite) {
+    return stream << "infinity";
+  }
+
+  return stream << cardinal.finite_value;
 }
 
 #endif // LABORATORYWORK4_CARDINAL_H
