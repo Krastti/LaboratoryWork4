@@ -3,6 +3,8 @@
 
 #include <cstddef>
 #include <functional>
+#include <sstream>
+#include <stdexcept>
 #include <string>
 
 #include "base_stream.h"
@@ -16,6 +18,22 @@ public:
    * Функция преобразования строкового представления элемента в объект типа T
    */
   using Deserializer = std::function<T(const std::string&)>;
+
+  /**
+   * Преобразует строку в T через стандартный оператор чтения >>.
+   */
+  static T default_deserialize(const std::string &source) {
+    std::istringstream input(source);
+    T value;
+
+    input >> value;
+
+    if (input.fail()) {
+      throw std::invalid_argument("Не удалось десериализовать значение");
+    }
+
+    return value;
+  }
 
   /**
    * Возвращает флаг достижения конца потока
@@ -44,5 +62,10 @@ public:
 
   virtual ~InStream() {}
 };
+
+template <>
+inline std::string InStream<std::string>::default_deserialize(const std::string &source) {
+  return source;
+}
 
 #endif // LABORATORYWORK4_IN_STREAM_H

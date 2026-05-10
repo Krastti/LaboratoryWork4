@@ -6,6 +6,10 @@
 #include <stdexcept>
 
 template <class T>
+FileInStream<T>::FileInStream(const char* file_path)
+  : FileInStream(file_path, InStream<T>::default_deserialize) {}
+
+template <class T>
 void FileInStream<T>::on_open() {
   file.open(file_path);
 

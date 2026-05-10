@@ -18,6 +18,11 @@ protected:
   void on_close() override;
 
 public:
+  /**
+   * Создаёт файловый поток ввода, используя стандартный десериализатор для T.
+   */
+  FileInStream(const char* file_path);
+
   FileInStream(const char* file_path, typename InStream<T>::Deserializer deserializer);
 
   bool is_end_of_stream() const override;
