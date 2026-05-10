@@ -9,7 +9,7 @@ private:
   LazySequence<T>* source;
 
   /**
-   * Проверяет, что позицию потока можно безопасно передать в LazySequence::get(int).
+   * Проверяет, что позицию потока можно безопасно передать в LazySequence::get(int)
    */
   void check_position_supported(std::size_t index) const;
 
