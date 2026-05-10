@@ -156,11 +156,13 @@ Generator<T>::Generator(
     change_index(index),
     change_items(copy_sequence(items)),
     change_offset(0),
-    remove_count(
-      change_kind == GeneratorChangeKind::Remove && items != nullptr
-        ? static_cast<std::size_t>(items->get_length())
-        : 0
-    ) {}
+    remove_count(0) {
+  if (change_kind == GeneratorChangeKind::Remove && items != nullptr) {
+    remove_count = static_cast<std::size_t>(items->get_length());
+  } else {
+    remove_count = 0;
+  }
+}
 
 template <class T>
 Generator<T>::Generator(const Generator<T> &generator)
