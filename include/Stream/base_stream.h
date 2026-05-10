@@ -39,7 +39,7 @@ public:
     opened = false;
   }
 
-  virtual ~BaseStream() {}
+  virtual ~BaseStream() = default;
 };
 
 #endif // LABORATORYWORK4_BASE_STREAM_H
