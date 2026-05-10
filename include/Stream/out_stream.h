@@ -17,26 +17,6 @@ public:
   using Serializer = std::function<std::string(const T&)>;
 
   /**
-   * Создаёт пустую базовую часть выходного потока
-   */
-  OutStream() = default;
-
-  /**
-   * Создаёт выходной поток, записывающий элементы в Sequence
-   */
-  OutStream(Sequence<T>* destination) {}
-
-  /**
-   * Создаёт выходной поток, записывающий элементы в файл через сериализатор
-   */
-  OutStream(const char* file_path, Serializer serializer) {}
-
-  /**
-   * Создаёт выходной поток на основе другого выходного потока
-   */
-  OutStream(OutStream<T>* destination) {}
-
-  /**
    * Записывает элемент в поток и возвращает позицию следующей записи
    */
   virtual std::size_t write(const T &item) = 0;

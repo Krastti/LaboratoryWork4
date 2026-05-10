@@ -18,36 +18,6 @@ public:
   using Deserializer = std::function<T(const std::string&)>;
 
   /**
-   * Создаёт пустую базовую часть входного потока
-   */
-  InStream() = default;
-
-  /**
-   * Создаёт входной поток, читающий элементы из Sequence
-   */
-  InStream(Sequence<T>* source) {}
-
-  /**
-   * Создаёт входной поток, читающий элементы из LazySequence
-   */
-  InStream(LazySequence<T>* source) {}
-
-  /**
-   * Создаёт входной поток, читающий элементы из файла через десериализатор
-   */
-  InStream(const char* file_path, Deserializer deserializer) {}
-
-  /**
-   * Создаёт входной поток, читающий элементы из строки через десериализатор
-   */
-  InStream(const std::string &source, Deserializer deserializer) {}
-
-  /**
-   * Создаёт входной поток на основе другого входного потока
-   */
-  InStream(InStream<T>* source) {}
-
-  /**
    * Возвращает флаг достижения конца потока
    */
   virtual bool is_end_of_stream() const = 0;
