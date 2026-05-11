@@ -8,4 +8,10 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 add_executable(LaboratoryWork4
   main.cpp
+  src/state_machine.cpp
+)
+
+target_include_directories(LaboratoryWork4
+  PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
