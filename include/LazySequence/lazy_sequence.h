@@ -11,6 +11,9 @@
 template <class T>
 class LazySequence : public Sequence<T> {
 private:
+  /*
+   * Пришлось сделать хранение данных mutable, поскольку Sequence требует const
+   */
   mutable Sequence<T>* materialized;
   Cardinal length;
   mutable Generator<T>* generator;
