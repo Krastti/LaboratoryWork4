@@ -32,6 +32,8 @@ private:
   using Rule = std::function<T(Sequence<T>*)>;
 
   LazySequence<T>* owner;
+  LazySequence<T>* source;
+  bool owns_source;
   Rule rule;
   CircularBuffer<T> generated_context;
   std::size_t position; // Текущая позиция генератора в результирующей последовательности
@@ -87,6 +89,26 @@ public:
     std::size_t index,
     Sequence<T>* items,
     GeneratorChangeKind change_kind
+  );
+
+  // Конструктор генератора поверх копии исходной ленивой последовательности
+  Generator(
+    LazySequence<T>* owner,
+    LazySequence<T>* source,
+    std::size_t index,
+    const T &item,
+    GeneratorChangeKind change_kind,
+    std::size_t start_position
+  );
+
+  // Конструктор генератора поверх исходной последовательности без вставляемого элемента
+  Generator(
+    LazySequence<T>* owner,
+    LazySequence<T>* source,
+    std::size_t change_index,
+    GeneratorChangeKind change_kind,
+    std::size_t start_position,
+    std::size_t remove_count = 0
   );
 
   Generator(const Generator<T> &generator);

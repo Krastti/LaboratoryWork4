@@ -43,6 +43,35 @@ void Generator<T>::clear_change() {
 
 template <class T>
 T Generator<T>::get_source_next() {
+  if (source != nullptr) {
+    if (change_kind == GeneratorChangeKind::Insert) {
+      std::size_t inserted_count = static_cast<std::size_t>(change_items->get_length());
+      std::size_t source_index = position;
+
+      if (position >= change_index + inserted_count) {
+        source_index -= inserted_count;
+      }
+
+      return source->get(static_cast<int>(source_index));
+    }
+
+    if (change_kind == GeneratorChangeKind::Remove) {
+      std::size_t source_index = position;
+
+      if (position >= change_index) {
+        source_index += remove_count;
+      }
+
+      return source->get(static_cast<int>(source_index));
+    }
+
+    if (change_kind == GeneratorChangeKind::Append) {
+      return source->get(static_cast<int>(position - change_index));
+    }
+
+    return source->get(static_cast<int>(position));
+  }
+
   if (!has_rule) {
     throw std::out_of_range("Достигнут конец генератора");
   }
@@ -81,7 +110,8 @@ bool Generator<T>::should_emit_change_item() const {
 
 template <class T>
 bool Generator<T>::should_skip_source_item() const {
-  return has_change
+  return source == nullptr
+    && has_change
     && change_kind == GeneratorChangeKind::Remove
     && position >= change_index
     && change_offset < remove_count;
@@ -99,6 +129,8 @@ Generator<T>::Generator(
   std::size_t context_size
 )
   : owner(owner),
+    source(nullptr),
+    owns_source(false),
     rule(rule),
     generated_context(context_size),
     position(0),
@@ -124,6 +156,8 @@ Generator<T>::Generator(
   GeneratorChangeKind change_kind
 )
   : owner(owner),
+    source(nullptr),
+    owns_source(false),
     rule(),
     generated_context(1),
     position(0),
@@ -147,6 +181,8 @@ Generator<T>::Generator(
   GeneratorChangeKind change_kind
 )
   : owner(owner),
+    source(nullptr),
+    owns_source(false),
     rule(),
     generated_context(1),
     position(0),
@@ -165,12 +201,79 @@ Generator<T>::Generator(
 }
 
 template <class T>
+Generator<T>::Generator(
+  LazySequence<T>* owner,
+  LazySequence<T>* source,
+  std::size_t index,
+  const T &item,
+  GeneratorChangeKind change_kind,
+  std::size_t start_position
+)
+  : owner(owner),
+    source(nullptr),
+    owns_source(false),
+    rule(),
+    generated_context(1),
+    position(start_position),
+    has_rule(false),
+    has_change(true),
+    change_kind(change_kind),
+    change_index(index),
+    change_items(new MutableArraySequence<T>()),
+    change_offset(0),
+    remove_count(change_kind == GeneratorChangeKind::Remove ? 1 : 0) {
+  if (source == nullptr) {
+    throw std::invalid_argument("Источник генератора не может быть нулевым");
+  }
+
+  this->source = new LazySequence<T>(*source);
+  owns_source = true;
+
+  if (change_kind != GeneratorChangeKind::Remove) {
+    change_items->append(item);
+    change_offset = static_cast<std::size_t>(change_items->get_length());
+  }
+}
+
+template <class T>
+Generator<T>::Generator(
+  LazySequence<T>* owner,
+  LazySequence<T>* source,
+  std::size_t change_index,
+  GeneratorChangeKind change_kind,
+  std::size_t start_position,
+  std::size_t remove_count
+)
+  : owner(owner),
+    source(nullptr),
+    owns_source(false),
+    rule(),
+    generated_context(1),
+    position(start_position),
+    has_rule(false),
+    has_change(true),
+    change_kind(change_kind),
+    change_index(change_index),
+    change_items(new MutableArraySequence<T>()),
+    change_offset(0),
+    remove_count(remove_count) {
+  if (source == nullptr) {
+    throw std::invalid_argument("Источник генератора не может быть нулевым");
+  }
+
+  this->source = new LazySequence<T>(*source);
+  owns_source = true;
+}
+
+template <class T>
 Generator<T>::Generator(const Generator<T> &generator)
   : Generator(generator, generator.owner) {}
 
 template <class T>
 Generator<T>::Generator(const Generator<T> &generator, LazySequence<T>* owner)
   : owner(owner),
+    source(nullptr),
+    owns_source(generator.owns_source),
     rule(generator.rule),
     generated_context(generator.generated_context),
     position(generator.position),
@@ -180,7 +283,12 @@ Generator<T>::Generator(const Generator<T> &generator, LazySequence<T>* owner)
     change_index(generator.change_index),
     change_items(copy_sequence(generator.change_items)),
     change_offset(generator.change_offset),
-    remove_count(generator.remove_count) {}
+    remove_count(generator.remove_count) {
+  if (generator.source != nullptr) {
+    source = new LazySequence<T>(*generator.source);
+    owns_source = true;
+  }
+}
 
 template <class T>
 Generator<T>& Generator<T>::operator=(const Generator<T> &generator) {
@@ -189,8 +297,13 @@ Generator<T>& Generator<T>::operator=(const Generator<T> &generator) {
   }
 
   delete change_items;
+  if (owns_source) {
+    delete source;
+  }
 
   owner = generator.owner;
+  source = nullptr;
+  owns_source = generator.owns_source;
   rule = generator.rule;
   generated_context = generator.generated_context;
   position = generator.position;
@@ -201,6 +314,11 @@ Generator<T>& Generator<T>::operator=(const Generator<T> &generator) {
   change_items = copy_sequence(generator.change_items);
   change_offset = generator.change_offset;
   remove_count = generator.remove_count;
+
+  if (generator.source != nullptr) {
+    source = new LazySequence<T>(*generator.source);
+    owns_source = true;
+  }
 
   return *this;
 }
@@ -231,6 +349,10 @@ bool Generator<T>::has_next() const {
   }
 
   if (has_rule) {
+    return true;
+  }
+
+  if (source != nullptr) {
     return true;
   }
 
@@ -314,6 +436,9 @@ Generator<T>* Generator<T>::remove_at(std::size_t index, std::size_t count) cons
 template <class T>
 Generator<T>::~Generator() {
   delete change_items;
+  if (owns_source) {
+    delete source;
+  }
 }
 
 #endif // LABORATORYWORK4_GENERATOR_TPP
