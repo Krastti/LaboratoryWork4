@@ -22,7 +22,7 @@ LazySequenceInStream<T>::LazySequenceInStream(LazySequence<T>* source) : source(
 
 template <class T>
 bool LazySequenceInStream<T>::is_end_of_stream() const {
-  Cardinal length = source->get_length();
+  Cardinal length = source->get_cardinal_length();
   return length.is_finite() && this->position >= length.value();
 }
 
@@ -49,7 +49,7 @@ bool LazySequenceInStream<T>::is_can_seek() const {
 
 template <class T>
 std::size_t LazySequenceInStream<T>::seek(std::size_t index) {
-  Cardinal length = source->get_length();
+  Cardinal length = source->get_cardinal_length();
 
   if (length.is_finite() && index > length.value()) {
     throw std::out_of_range("Позиция вне допустимого диапазона");
