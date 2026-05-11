@@ -59,7 +59,7 @@ Sequence<T>* LazySequence<T>::copy_sequence(const Sequence<T>* seq) {
 }
 
 template <class T>
-void LazySequence<T>::materialize_until(int index) {
+void LazySequence<T>::materialize_until(int index) const {
   if (index < 0) {
     throw std::out_of_range("Индекс вне допустимого диапазона");
   }
@@ -76,7 +76,7 @@ void LazySequence<T>::materialize_until(int index) {
 }
 
 template <class T>
-bool LazySequence<T>::try_materialize_next() {
+bool LazySequence<T>::try_materialize_next() const {
   if (generator == nullptr) {
     return false;
   }
@@ -90,6 +90,27 @@ bool LazySequence<T>::try_materialize_next() {
   materialized->append(next.get_value());
 
   return true;
+}
+
+template <class T>
+void LazySequence<T>::sys_append(const T &item) {
+  if (length.is_infinite()) {
+    throw std::logic_error("Нельзя выполнить внутреннее добавление к бесконечной LazySequence");
+  }
+
+  Sequence<T>* updated = materialized->append(item);
+
+  if (updated != materialized) {
+    delete materialized;
+    materialized = updated;
+  }
+
+  length = Cardinal(length.value() + 1);
+}
+
+template <class T>
+Sequence<T>* LazySequence<T>::new_empty_instance() const {
+  return new LazySequence<T>();
 }
 
 template <class T>
@@ -145,12 +166,12 @@ LazySequence<T>::LazySequence(const LazySequence<T> &other)
 }
 
 template <class T>
-const T& LazySequence<T>::get_first() {
+const T& LazySequence<T>::get_first() const {
   return get(0);
 }
 
 template <class T>
-const T& LazySequence<T>::get_last() {
+const T& LazySequence<T>::get_last() const {
   if (length.is_infinite()) {
     throw std::logic_error("У бесконечной последовательности нет последнего элемента");
   }
@@ -163,24 +184,61 @@ const T& LazySequence<T>::get_last() {
 }
 
 template <class T>
-const T& LazySequence<T>::get(int index) {
+const T& LazySequence<T>::get(int index) const {
   materialize_until(index);
   return materialized->get(index);
 }
 
 template <class T>
-LazySequence<T>* LazySequence<T>::get_subsequence(int startIndex, int endIndex) {
+const T& LazySequence<T>::operator[](int index) const {
+  return get(index);
+}
+
+template <class T>
+Option<T> LazySequence<T>::try_get_first() const {
+  return try_get(0);
+}
+
+template <class T>
+Option<T> LazySequence<T>::try_get_last() const {
+  if (length.is_infinite()) {
+    return Option<T>::none();
+  }
+
+  if (length.value() == 0) {
+    return Option<T>::none();
+  }
+
+  return try_get(static_cast<int>(length.value() - 1));
+}
+
+template <class T>
+Option<T> LazySequence<T>::try_get(int index) const {
+  try {
+    return Option<T>::some(get(index));
+  } catch (const std::out_of_range&) {
+    return Option<T>::none();
+  }
+}
+
+template <class T>
+Option<T> LazySequence<T>::try_find(bool (*predicate)(const T &element)) const {
+  if (predicate == nullptr) {
+    throw std::invalid_argument("Нельзя выполнить try_find с нулевым предикатом");
+  }
+
+  throw std::logic_error("LazySequence не поддерживает try_find через интерфейс Sequence");
+}
+
+template <class T>
+Sequence<T>* LazySequence<T>::get_sub_sequence(int startIndex, int endIndex) const {
   if (startIndex < 0 || endIndex < 0 || startIndex > endIndex) {
     throw std::out_of_range("Индекс вне допустимого диапазона");
   }
 
   materialize_until(endIndex);
 
-  Sequence<T>* subsequence = materialized->get_sub_sequence(startIndex, endIndex);
-  LazySequence<T>* result = new LazySequence<T>(subsequence);
-
-  delete subsequence;
-  return result;
+  return materialized->get_sub_sequence(startIndex, endIndex);
 }
 
 template <class T>
@@ -204,6 +262,11 @@ Cardinal LazySequence<T>::get_cardinal_length() const {
 template <class T>
 std::size_t LazySequence<T>::get_materialized_count() const {
   return static_cast<std::size_t>(materialized->get_length());
+}
+
+template <class T>
+EnumeratorWrapper<T> LazySequence<T>::get_enumerator() const {
+  throw std::logic_error("LazySequence не поддерживает прямое перечисление через get_enumerator");
 }
 
 template <class T>

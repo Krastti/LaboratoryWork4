@@ -8,13 +8,12 @@
 #include "../Sequence/array_sequence.h"
 #include "../Sequence/sequence.h"
 
-// TODO Сделать LazySequence наследником Sequence
 template <class T>
-class LazySequence {
+class LazySequence : public Sequence<T> {
 private:
-  Sequence<T>* materialized;
+  mutable Sequence<T>* materialized;
   Cardinal length;
-  Generator<T>* generator;
+  mutable Generator<T>* generator;
 
   static Sequence<T>* make_from_array(const T* items, int count);
 
@@ -40,12 +39,15 @@ private:
    * больше последнего индекса элемента в materialized, то данная функция должна
    * вычислить элемент до нужно индекса
    */
-  void materialize_until(int index);
+  void materialize_until(int index) const;
 
   /*
    * По аналогии с прошлой функции, но только для следующего элемента.
    */
-  bool try_materialize_next();
+  bool try_materialize_next() const;
+
+  Option<T> try_find(bool (*predicate)(const T &element)) const override;
+  EnumeratorWrapper<T> get_enumerator() const override;
 
   /**
    * Создает последовательность из уже подготовленных внутренних частей.
@@ -54,6 +56,9 @@ private:
   LazySequence(Sequence<T>* materialized, Cardinal length, Generator<T>* generator);
 
 protected:
+  void sys_append(const T &item) override;
+  Sequence<T>* new_empty_instance() const override;
+
   static Sequence<T>* copy_sequence(const Sequence<T>* seq);
 
 public:
@@ -77,26 +82,26 @@ public:
    */
   LazySequence(const LazySequence<T> &other);
 
-  const T& get_first();
-  const T& get_last();
-  const T& get(int index);
+  const T& get_first() const override;
+  const T& get_last() const override;
+  const T& get(int index) const override;
+  const T& operator[](int index) const override;
 
-  LazySequence<T>* get_subsequence(int startIndex, int endIndex);
+  Option<T> try_get_first() const override;
+  Option<T> try_get_last() const override;
+  Option<T> try_get(int index) const override;
 
-  int get_length() const;
+  Sequence<T>* get_sub_sequence(int startIndex, int endIndex) const override;
+
+  int get_length() const override;
   Cardinal get_cardinal_length() const;
   std::size_t get_materialized_count() const;
 
   // Операции
-  // TODO Спросить у преподавателя стоит ли сделать append и prepend - LazySequence
-  /*
-   * Теоретическое решение пока не ответил Михаил Владиславович - делать выброс для бесконечных последовательностей
-   * Методы являются Immutable!
-   */
-  Sequence<T>* append(const T &item);
-  Sequence<T>* prepend(const T &item);
+  Sequence<T>* append(const T &item) override;
+  Sequence<T>* prepend(const T &item) override;
+  LazySequence<T>* insert_at(const T &item, int index) override;
 
-  LazySequence<T>* insert_at(const T &item, int index);
   LazySequence<T>* remove_at(int index);
   LazySequence<T>* concat(LazySequence<T>* other);
 
@@ -117,7 +122,7 @@ public:
   template <class T2>
   LazySequence<Pair<T, T2>>* zip(LazySequence<T2>* seq);
 
-  ~LazySequence();
+  ~LazySequence() override;
 };
 
 #include "lazy_sequence.tpp"
