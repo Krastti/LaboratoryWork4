@@ -3,6 +3,7 @@
 
 #include "lazy_sequence.h"
 
+#include <limits>
 #include <stdexcept>
 
 template <class T>
@@ -183,7 +184,20 @@ LazySequence<T>* LazySequence<T>::get_subsequence(int startIndex, int endIndex) 
 }
 
 template <class T>
-Cardinal LazySequence<T>::get_length() const {
+int LazySequence<T>::get_length() const {
+  if (length.is_infinite()) {
+    throw std::logic_error("Бесконечная LazySequence не имеет конечной длины");
+  }
+
+  if (length.value() > static_cast<std::size_t>(std::numeric_limits<int>::max())) {
+    throw std::overflow_error("Длина LazySequence не помещается в int");
+  }
+
+  return static_cast<int>(length.value());
+}
+
+template <class T>
+Cardinal LazySequence<T>::get_cardinal_length() const {
   return length;
 }
 
@@ -352,8 +366,8 @@ LazySequence<T>* LazySequence<T>::concat(LazySequence<T>* other) {
   }
 
   // Если обе последовательности конечные, материализуем результат обычной последовательностью
-  if (other->get_length().is_finite()) {
-    Cardinal list_length = other->get_length();
+  if (other->get_cardinal_length().is_finite()) {
+    Cardinal list_length = other->get_cardinal_length();
 
     if (list_length.value() > 0) {
       other->materialize_until(static_cast<int>(list_length.value() - 1));
@@ -618,7 +632,7 @@ LazySequence<Pair<T, T2>>* LazySequence<T>::zip(LazySequence<T2>* seq) {
     throw std::invalid_argument("Нельзя выполнить zip с нулевой последовательностью");
   }
 
-  Cardinal right_length = seq->get_length();
+  Cardinal right_length = seq->get_cardinal_length();
 
   // Если хотя бы одна последовательность конечная, zip тоже конечный
   if (length.is_finite() || right_length.is_finite()) {

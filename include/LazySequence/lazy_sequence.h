@@ -8,6 +8,7 @@
 #include "../Sequence/array_sequence.h"
 #include "../Sequence/sequence.h"
 
+// TODO Сделать LazySequence наследником Sequence
 template <class T>
 class LazySequence {
 private:
@@ -81,7 +82,9 @@ public:
   const T& get(int index);
 
   LazySequence<T>* get_subsequence(int startIndex, int endIndex);
-  Cardinal get_length() const;
+
+  int get_length() const;
+  Cardinal get_cardinal_length() const;
   std::size_t get_materialized_count() const;
 
   // Операции
