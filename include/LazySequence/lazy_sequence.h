@@ -9,28 +9,11 @@
 
 template <class T> class LazySequence : public Sequence<T> {
 private:
-  /*
-   * Пришлось сделать хранение данных mutable, поскольку Sequence требует const
-   */
   mutable Sequence<T> *materialized;
   Cardinal length;
   mutable Generator<T> *generator;
 
-  // TODO Какой смысл в данном методе, если можно вызывать метод DynamicArray
   static Sequence<T> *make_from_array(const T *items, int count);
-
-  /**
-   * Проверяет рекуррентное правило и копирует начальный контекст
-   */
-  // TODO Почему здесь мы используем указатель
-  static Sequence<T> *
-  make_initial_for_recurrence(T (*recurrence)(Sequence<T> *), const Sequence<T> &initial);
-
-  /**
-   * Проверяет std::function-рекуррентное правило и копирует начальный контекст
-   */
-  static Sequence<T> *
-  make_initial_for_recurrence(const std::function<T(Sequence<T> *)> &recurrence, Sequence<T> *initial);
 
   /**
    * Задача данного метода заключается в гарантировании того, что некий элемент
@@ -39,10 +22,6 @@ private:
    * функция должна вычислить элемент до нужно индекса
    */
   void materialize_until(int index) const;
-
-  /*
-   * По аналогии с прошлой функции, но только для следующего элемента.
-   */
   bool try_materialize_next() const;
 
   /**
@@ -101,8 +80,8 @@ public:
   std::size_t get_materialized_count() const;
 
   // Операции
-  Sequence<T> *append(const T &item) override;
-  Sequence<T> *prepend(const T &item) override;
+  LazySequence<T> *append(const T &item) override;
+  LazySequence<T> *prepend(const T &item) override;
   LazySequence<T> *insert_at(const T &item, int index) override;
 
   LazySequence<T> *remove_at(int index);

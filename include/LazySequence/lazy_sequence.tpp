@@ -20,30 +20,6 @@ Sequence<T>* LazySequence<T>::make_from_array(const T* items, int count) {
 }
 
 template <class T>
-Sequence<T>* LazySequence<T>::make_initial_for_recurrence(
-  T (*recurrence)(Sequence<T>*),
-  const Sequence<T> &initial
-) {
-  if (recurrence == nullptr) {
-    throw std::invalid_argument("Порождающее правило не может быть нулевым");
-  }
-
-  return copy_sequence(&initial);
-}
-
-template <class T>
-Sequence<T>* LazySequence<T>::make_initial_for_recurrence(
-  const std::function<T(Sequence<T>*)> &recurrence,
-  Sequence<T>* initial
-) {
-  if (!recurrence) {
-    throw std::invalid_argument("Порождающее правило не может быть пустым");
-  }
-
-  return copy_sequence(initial);
-}
-
-template <class T>
 Sequence<T>* LazySequence<T>::copy_sequence(const Sequence<T>* seq) {
   if (seq == nullptr) {
     throw std::invalid_argument("Нельзя создать LazySequence из нулевой последовательности");
@@ -145,15 +121,43 @@ LazySequence<T>::LazySequence(Sequence<T>* seq)
 
 template <class T>
 LazySequence<T>::LazySequence(T (*recurrence)(Sequence<T>*), const Sequence<T> &initial)
-  : materialized(make_initial_for_recurrence(recurrence, initial)),
+  : materialized(nullptr),
     length(Cardinal::infinity()),
-    generator(new Generator<T>(this, recurrence, materialized)) {}
+    generator(nullptr) {
+  if (recurrence == nullptr) {
+    throw std::invalid_argument("Порождающее правило не может быть нулевым");
+  }
+
+  materialized = copy_sequence(&initial);
+
+  try {
+    generator = new Generator<T>(this, recurrence, materialized);
+  } catch (...) {
+    delete materialized;
+    materialized = nullptr;
+    throw;
+  }
+}
 
 template <class T>
 LazySequence<T>::LazySequence(std::function<T(Sequence<T>*)> recurrence, Sequence<T>* initial, std::size_t context_size)
-  : materialized(make_initial_for_recurrence(recurrence, initial)),
+  : materialized(nullptr),
     length(Cardinal::infinity()),
-    generator(new Generator<T>(this, recurrence, materialized, context_size)) {}
+    generator(nullptr) {
+  if (!recurrence) {
+    throw std::invalid_argument("Порождающее правило не может быть пустым");
+  }
+
+  materialized = copy_sequence(initial);
+
+  try {
+    generator = new Generator<T>(this, recurrence, materialized, context_size);
+  } catch (...) {
+    delete materialized;
+    materialized = nullptr;
+    throw;
+  }
+}
 
 template <class T>
 LazySequence<T>::LazySequence(const LazySequence<T> &other)
@@ -227,7 +231,7 @@ Option<T> LazySequence<T>::try_find(bool (*predicate)(const T &element)) const {
     throw std::invalid_argument("Нельзя выполнить try_find с нулевым предикатом");
   }
 
-  throw std::logic_error("LazySequence не поддерживает try_find через интерфейс Sequence");
+  throw std::logic_error("LazySequence не поддерживает поиск через Sequence::try_find");
 }
 
 template <class T>
@@ -266,13 +270,13 @@ std::size_t LazySequence<T>::get_materialized_count() const {
 
 template <class T>
 EnumeratorWrapper<T> LazySequence<T>::get_enumerator() const {
-  throw std::logic_error("LazySequence не поддерживает прямое перечисление через get_enumerator");
+  throw std::logic_error("LazySequence не поддерживает перечисление через Sequence::get_enumerator");
 }
 
 template <class T>
-Sequence<T>* LazySequence<T>::append(const T &item) {
+LazySequence<T>* LazySequence<T>::append(const T &item) {
   if (length.is_infinite()) {
-    throw std::logic_error("Нельзя вернуть бесконечный LazySequence как Sequence");
+    return new LazySequence<T>(*this);
   }
 
   if (length.value() > 0) {
@@ -280,15 +284,20 @@ Sequence<T>* LazySequence<T>::append(const T &item) {
   }
 
   Sequence<T>* result = copy_sequence(materialized);
-  result->append(item);
+  Sequence<T>* updated = result->append(item);
 
-  return result;
+  if (updated != result) {
+    delete result;
+    result = updated;
+  }
+
+  return new LazySequence<T>(result, Cardinal(length.value() + 1), nullptr);
 }
 
 template <class T>
-Sequence<T>* LazySequence<T>::prepend(const T &item) {
+LazySequence<T>* LazySequence<T>::prepend(const T &item) {
   if (length.is_infinite()) {
-    throw std::logic_error("Нельзя вернуть бесконечный LazySequence как Sequence");
+    return insert_at(item, 0);
   }
 
   if (length.value() > 0) {
@@ -296,9 +305,14 @@ Sequence<T>* LazySequence<T>::prepend(const T &item) {
   }
 
   Sequence<T>* result = copy_sequence(materialized);
-  result->prepend(item);
+  Sequence<T>* updated = result->prepend(item);
 
-  return result;
+  if (updated != result) {
+    delete result;
+    result = updated;
+  }
+
+  return new LazySequence<T>(result, Cardinal(length.value() + 1), nullptr);
 }
 
 template <class T>
