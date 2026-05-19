@@ -13,6 +13,10 @@ private:
   Cardinal length;
   mutable Generator<T> *generator;
 
+  /**
+   * Данный метод нужен для того, чтобы создавать новый MutableArraySequence, но с
+   * учётом того, что перед этим он делает проверки на корректность передаваемых параметров
+   */
   static Sequence<T> *make_from_array(const T *items, int count);
 
   /**
