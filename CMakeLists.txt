@@ -15,3 +15,13 @@ target_include_directories(LaboratoryWork4
   PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
+
+add_executable(LaboratoryWork4Tests
+  tests/test.cpp
+  src/state_machine.cpp
+)
+
+target_include_directories(LaboratoryWork4Tests
+  PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
