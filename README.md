@@ -2,24 +2,21 @@
 
 ## Build
 
-### Windows
-
-```powershell
-cmake -S . -B build
-cmake --build build
-```
-
-Unit Tests:
-
-```powershell
-cmake --build build --target LaboratoryWork4Tests
-```
-
-### Linux / macOS
-
 ```bash
 cmake -S . -B build
 cmake --build build
+```
+
+Пример работы кода с трансфинитными индексами:
+
+```bash
+cmake --build build --target LaboratoryWork4
+```
+
+Интерфейс турникета
+
+```bash
+cmake --build build --target TurnstileInterface
 ```
 
 Unit Tests:
