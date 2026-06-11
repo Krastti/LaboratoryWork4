@@ -16,8 +16,8 @@ Event coin(1, "Монета");
 Event push(2, "Толкнуть");
 
 StateMachine turnstile;
-std::string current_event_text  = "Нет";
-std::string current_action_text = "Ожидание первого события";
+std::wstring current_event_text  = L"Нет";
+std::wstring current_action_text = L"Ожидание первого события";
 int  current_step = 0;
 bool is_running   = false;
 
@@ -25,8 +25,8 @@ std::random_device random_device;
 std::mt19937 rng(random_device());
 std::uniform_int_distribution<int> percent(1, 100);
 
-std::string state_text() {
-  return turnstile.get_current_state().id == locked.id ? "Закрыт" : "Открыт";
+std::wstring state_text() {
+  return turnstile.get_current_state().id == locked.id ? L"Закрыт" : L"Открыт";
 }
 
 void initialize_turnstile() {
@@ -37,22 +37,22 @@ void initialize_turnstile() {
   turnstile.add_transition(Transition(
       locked, coin, unlocked,
       "Разблокировать турникет",
-      []() { current_action_text = "Монета принята. Турникет открыт."; }));
+      []() { current_action_text = L"Монета принята. Турникет открыт."; }));
 
   turnstile.add_transition(Transition(
       unlocked, push, locked,
       "Пропустить человека и заблокировать турникет",
-      []() { current_action_text = "Проход выполнен. Турникет снова закрыт."; }));
+      []() { current_action_text = L"Проход выполнен. Турникет снова закрыт."; }));
 
   turnstile.add_transition(Transition(
       locked, push, locked,
       "Отказать в проходе",
-      []() { current_action_text = "Проход запрещен. Сначала нужна монета."; }));
+      []() { current_action_text = L"Проход запрещен. Сначала нужна монета."; }));
 
   turnstile.add_transition(Transition(
       unlocked, coin, unlocked,
       "Оставить турникет открытым",
-      []() { current_action_text = "Турникет уже открыт. Монета не меняет состояние."; }));
+      []() { current_action_text = L"Турникет уже открыт. Монета не меняет состояние."; }));
 
   turnstile.open();
 }
@@ -64,21 +64,21 @@ Event next_generated_event() {
 }
 
 void do_process_event(const Event &event) {
-  current_event_text = event.id == coin.id ? "Монета" : "Толкнуть";
+  current_event_text = event.id == coin.id ? L"Монета" : L"Толкнуть";
   current_step++;
 
   try {
     turnstile.process_event(event);
   } catch (const std::exception&) {
-    current_action_text = "Для этого события нет перехода.";
+    current_action_text = L"Для этого события нет перехода.";
   }
 }
 
 void do_reset() {
   is_running   = false;
   current_step = 0;
-  current_event_text  = "Нет";
-  current_action_text = "Ожидание первого события";
+  current_event_text  = L"Нет";
+  current_action_text = L"Ожидание первого события";
   turnstile.reset();
 }
 
@@ -100,12 +100,7 @@ const int k_coin_button_id  = 103;
 const int k_push_button_id  = 104;
 const int k_reset_button_id = 105;
 
-std::wstring to_wstring(const std::string &s) {
-  int len = MultiByteToWideChar(CP_UTF8, 0, s.c_str(), -1, nullptr, 0);
-  std::wstring result(len, L'\0');
-  MultiByteToWideChar(CP_UTF8, 0, s.c_str(), -1, result.data(), len);
-  return result;
-}
+std::wstring to_wstring(const std::wstring &s) { return s; }
 
 void process_event(HWND window, const Event &event) {
   do_process_event(event);
@@ -289,6 +284,7 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE, LPSTR, int show_command) {
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 #include <X11/Xatom.h>
+#include <X11/Xft/Xft.h>
 
 #include <chrono>
 #include <time.h>
@@ -309,7 +305,7 @@ unsigned long alloc_color(Display* display, Colormap colormap, Color c) {
 
 struct Button {
   int x, y, width, height;
-  const char* label;
+  const char* label;   // UTF-8
 };
 
 const Button k_buttons[] = {
@@ -326,69 +322,143 @@ const int k_btn_coin   = 2;
 const int k_btn_push   = 3;
 const int k_btn_reset  = 4;
 
+// ── Xft helpers ──────────────────────────────────────────────────────────────
+
+void xft_draw_string(
+    Display* display, Drawable drawable, Visual* visual, Colormap colormap,
+    XftFont* font, Color fg, int x, int y, const char* utf8_text) {
+  XftDraw* xft = XftDrawCreate(display, drawable, visual, colormap);
+  XRenderColor rc = {
+    static_cast<unsigned short>(fg.r * 257u),
+    static_cast<unsigned short>(fg.g * 257u),
+    static_cast<unsigned short>(fg.b * 257u),
+    0xFFFFu
+  };
+  XftColor xft_color;
+  XftColorAllocValue(display, visual, colormap, &rc, &xft_color);
+  XftDrawStringUtf8(xft, &xft_color, font,
+      x, y,
+      reinterpret_cast<const FcChar8*>(utf8_text),
+      static_cast<int>(strlen(utf8_text)));
+  XftColorFree(display, visual, colormap, &xft_color);
+  XftDrawDestroy(xft);
+}
+
+int xft_text_width(XftFont* font, const char* utf8_text) {
+  XGlyphInfo extents;
+  XftTextExtentsUtf8(
+      XtDisplay(nullptr) /* not used — need Display* */,
+      font,
+      reinterpret_cast<const FcChar8*>(utf8_text),
+      static_cast<int>(strlen(utf8_text)),
+      &extents);
+  return extents.xOff;
+}
+
+// Wrapper that carries Display* for xft_text_width
+struct XftContext {
+  Display*  display;
+  Visual*   visual;
+  Colormap  colormap;
+};
+
+void xft_draw_centered(
+    const XftContext& ctx, Drawable drawable,
+    XftFont* font, Color fg, int cx, int y, const char* text) {
+  XGlyphInfo ext;
+  XftTextExtentsUtf8(ctx.display, font,
+      reinterpret_cast<const FcChar8*>(text),
+      static_cast<int>(strlen(text)), &ext);
+  int x = cx - ext.xOff / 2;
+  xft_draw_string(ctx.display, drawable, ctx.visual, ctx.colormap,
+      font, fg, x, y, text);
+}
+
+// ── Drawing functions ─────────────────────────────────────────────────────────
+
 void draw_centered_text(
-    Display* display, Window window, GC gc,
-    XFontStruct* font, int cx, int y, const char* text) {
-  int len = static_cast<int>(strlen(text));
-  int text_width = XTextWidth(font, text, len);
-  XDrawString(display, window, gc, cx - text_width / 2, y, text, len);
+    const XftContext& ctx, Drawable drawable,
+    XftFont* font, int cx, int y, const char* text) {
+  xft_draw_centered(ctx, drawable, font, {25, 30, 36}, cx, y, text);
 }
 
 void draw_lamp(
     Display* display, Window window, GC gc,
-    XFontStruct* font, Colormap colormap,
+    const XftContext& ctx, XftFont* font,
     int x, int y, Color active_color, bool is_active, const char* caption) {
-  XSetForeground(display, gc, alloc_color(display, colormap,
+  XSetForeground(display, gc, alloc_color(display, ctx.colormap,
       is_active ? active_color : Color{85, 85, 85}));
   XFillArc(display, window, gc, x, y, 110, 110, 0, 360 * 64);
 
-  XSetForeground(display, gc, alloc_color(display, colormap, {35, 35, 35}));
+  XSetForeground(display, gc, alloc_color(display, ctx.colormap, {35, 35, 35}));
   XDrawArc(display, window, gc, x, y, 110, 110, 0, 360 * 64);
 
-  XSetForeground(display, gc, alloc_color(display, colormap, {25, 30, 36}));
-  draw_centered_text(display, window, gc, font, x + 55, y + 140, caption);
+  xft_draw_centered(ctx, window, font, {25, 30, 36}, x + 55, y + 140 + font->ascent, caption);
 }
 
 void draw_button(
     Display* display, Window window, GC gc,
-    XFontStruct* font, Colormap colormap, const Button &btn) {
-  XSetForeground(display, gc, alloc_color(display, colormap, {220, 224, 230}));
+    const XftContext& ctx, XftFont* font, const Button &btn) {
+  XSetForeground(display, gc, alloc_color(display, ctx.colormap, {220, 224, 230}));
   XFillRectangle(display, window, gc, btn.x, btn.y, btn.width, btn.height);
 
-  XSetForeground(display, gc, alloc_color(display, colormap, {170, 175, 185}));
+  XSetForeground(display, gc, alloc_color(display, ctx.colormap, {170, 175, 185}));
   XDrawRectangle(display, window, gc, btn.x, btn.y, btn.width, btn.height);
 
-  XSetForeground(display, gc, alloc_color(display, colormap, {25, 30, 36}));
-  int len = static_cast<int>(strlen(btn.label));
-  int text_x = btn.x + (btn.width  - XTextWidth(font, btn.label, len)) / 2;
+  XGlyphInfo ext;
+  XftTextExtentsUtf8(display, font,
+      reinterpret_cast<const FcChar8*>(btn.label),
+      static_cast<int>(strlen(btn.label)), &ext);
+  int text_x = btn.x + (btn.width  - ext.xOff) / 2;
   int text_y = btn.y + (btn.height + font->ascent) / 2 - 2;
-  XDrawString(display, window, gc, text_x, text_y, btn.label, len);
+  xft_draw_string(ctx.display, window, ctx.visual, ctx.colormap,
+      font, {25, 30, 36}, text_x, text_y, btn.label);
+}
+
+// Convert wstring (shared state) to UTF-8 for Xft rendering
+std::string to_utf8(const std::wstring &ws) {
+  if (ws.empty()) return {};
+  std::string result;
+  for (wchar_t wc : ws) {
+    unsigned int cp = static_cast<unsigned int>(wc);
+    if (cp < 0x80) {
+      result += static_cast<char>(cp);
+    } else if (cp < 0x800) {
+      result += static_cast<char>(0xC0 | (cp >> 6));
+      result += static_cast<char>(0x80 | (cp & 0x3F));
+    } else {
+      result += static_cast<char>(0xE0 | (cp >> 12));
+      result += static_cast<char>(0x80 | ((cp >> 6) & 0x3F));
+      result += static_cast<char>(0x80 | (cp & 0x3F));
+    }
+  }
+  return result;
 }
 
 void draw_interface(
     Display* display, Window window, GC gc,
-    XFontStruct* title_font, XFontStruct* text_font, Colormap colormap) {
-  XSetForeground(display, gc, alloc_color(display, colormap, {245, 247, 250}));
+    XftFont* title_font, XftFont* text_font,
+    const XftContext& ctx) {
+  XSetForeground(display, gc, alloc_color(display, ctx.colormap, {245, 247, 250}));
   XFillRectangle(display, window, gc, 0, 0, k_window_width, k_window_height);
 
-  auto draw_line = [&](XFontStruct* font, int x, int y, const std::string &text) {
-    XSetFont(display, gc, font->fid);
-    XSetForeground(display, gc, alloc_color(display, colormap, {25, 30, 36}));
-    XDrawString(display, window, gc, x, y, text.c_str(), static_cast<int>(text.size()));
+  auto draw_line = [&](XftFont* font, int x, int y, const std::string &utf8) {
+    xft_draw_string(display, window, ctx.visual, ctx.colormap,
+        font, {25, 30, 36}, x, y, utf8.c_str());
   };
 
   draw_line(title_font, 30,  50, "Машина состояний: турникет");
   draw_line(text_font,  30,  90, "Шаг: "               + std::to_string(current_step));
-  draw_line(text_font,  30, 120, "Событие: "            + current_event_text);
-  draw_line(text_font,  30, 150, "Действие: "           + current_action_text);
-  draw_line(text_font,  30, 180, "Текущее состояние: "  + state_text());
+  draw_line(text_font,  30, 120, "Событие: "            + to_utf8(current_event_text));
+  draw_line(text_font,  30, 150, "Действие: "           + to_utf8(current_action_text));
+  draw_line(text_font,  30, 180, "Текущее состояние: "  + to_utf8(state_text()));
 
   bool is_locked = turnstile.get_current_state().id == locked.id;
-  draw_lamp(display, window, gc, text_font, colormap, 145, 215, {220, 55, 55}, is_locked,  "Закрыт");
-  draw_lamp(display, window, gc, text_font, colormap, 385, 215, {40, 170, 95}, !is_locked, "Открыт");
+  draw_lamp(display, window, gc, ctx, text_font, 145, 215, {220, 55, 55}, is_locked,  "Закрыт");
+  draw_lamp(display, window, gc, ctx, text_font, 385, 215, {40, 170, 95}, !is_locked, "Открыт");
 
   for (int i = 0; i < k_button_count; i++) {
-    draw_button(display, window, gc, text_font, colormap, k_buttons[i]);
+    draw_button(display, window, gc, ctx, text_font, k_buttons[i]);
   }
 }
 
@@ -410,8 +480,11 @@ int main() {
 
   initialize_turnstile();
 
-  int screen      = DefaultScreen(display);
-  Colormap colormap = DefaultColormap(display, screen);
+  int screen        = DefaultScreen(display);
+  Visual*   visual  = DefaultVisual(display, screen);
+  Colormap  colormap = DefaultColormap(display, screen);
+
+  XftContext ctx = { display, visual, colormap };
 
   Window window = XCreateSimpleWindow(
       display, RootWindow(display, screen),
@@ -433,11 +506,26 @@ int main() {
 
   XSelectInput(display, window, ExposureMask | ButtonPressMask | StructureNotifyMask);
 
-  XFontStruct* title_font = XLoadQueryFont(display, "-*-helvetica-bold-r-*-*-18-*-*-*-*-*-*-*");
-  if (title_font == nullptr) title_font = XLoadQueryFont(display, "fixed");
+  // Load fonts via Xft — supports UTF-8 / Cyrillic out of the box
+  XftFont* title_font = XftFontOpen(display, screen,
+      XFT_FAMILY, XftTypeString, "DejaVu Sans",
+      XFT_SIZE,   XftTypeDouble, 16.0,
+      XFT_WEIGHT, XftTypeInteger, FC_WEIGHT_BOLD,
+      nullptr);
+  if (title_font == nullptr)
+    title_font = XftFontOpen(display, screen,
+        XFT_SIZE, XftTypeDouble, 16.0,
+        XFT_WEIGHT, XftTypeInteger, FC_WEIGHT_BOLD,
+        nullptr);
 
-  XFontStruct* text_font = XLoadQueryFont(display, "-*-helvetica-medium-r-*-*-14-*-*-*-*-*-*-*");
-  if (text_font == nullptr) text_font = XLoadQueryFont(display, "fixed");
+  XftFont* text_font = XftFontOpen(display, screen,
+      XFT_FAMILY, XftTypeString, "DejaVu Sans",
+      XFT_SIZE,   XftTypeDouble, 12.0,
+      nullptr);
+  if (text_font == nullptr)
+    text_font = XftFontOpen(display, screen,
+        XFT_SIZE, XftTypeDouble, 12.0,
+        nullptr);
 
   GC gc = XCreateGC(display, window, 0, nullptr);
 
@@ -458,7 +546,7 @@ int main() {
       }
 
       if (event.type == Expose && event.xexpose.count == 0) {
-        draw_interface(display, window, gc, title_font, text_font, colormap);
+        draw_interface(display, window, gc, title_font, text_font, ctx);
       }
 
       if (event.type == ButtonPress && event.xbutton.button == Button1) {
@@ -473,15 +561,15 @@ int main() {
           break;
         case k_btn_coin:
           do_process_event(coin);
-          draw_interface(display, window, gc, title_font, text_font, colormap);
+          draw_interface(display, window, gc, title_font, text_font, ctx);
           break;
         case k_btn_push:
           do_process_event(push);
-          draw_interface(display, window, gc, title_font, text_font, colormap);
+          draw_interface(display, window, gc, title_font, text_font, ctx);
           break;
         case k_btn_reset:
           do_reset();
-          draw_interface(display, window, gc, title_font, text_font, colormap);
+          draw_interface(display, window, gc, title_font, text_font, ctx);
           break;
         default: break;
         }
@@ -493,7 +581,7 @@ int main() {
       auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - last_tick).count();
       if (elapsed >= k_step_delay_ms) {
         do_process_event(next_generated_event());
-        draw_interface(display, window, gc, title_font, text_font, colormap);
+        draw_interface(display, window, gc, title_font, text_font, ctx);
         last_tick = now;
       }
     }
@@ -504,8 +592,8 @@ int main() {
 
 done:
   XFreeGC(display, gc);
-  XFreeFont(display, title_font);
-  XFreeFont(display, text_font);
+  XftFontClose(display, title_font);
+  XftFontClose(display, text_font);
   XDestroyWindow(display, window);
   XCloseDisplay(display);
   return 0;
