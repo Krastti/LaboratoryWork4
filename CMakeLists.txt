@@ -7,7 +7,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 add_executable(LaboratoryWork4
-  main.cpp
+        main.cpp
   src/state_machine.cpp
 )
 
@@ -24,4 +24,20 @@ add_executable(LaboratoryWork4Tests
 target_include_directories(LaboratoryWork4Tests
   PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+
+add_executable(TurnstileInterface WIN32
+        interface/turnstile_window.cpp
+        src/state_machine.cpp
+)
+
+target_include_directories(TurnstileInterface
+        PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+
+target_link_libraries(TurnstileInterface
+        PRIVATE
+        user32
+        gdi32
 )
