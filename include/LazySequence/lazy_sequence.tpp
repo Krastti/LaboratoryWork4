@@ -97,7 +97,7 @@ LazySequence<T>::LazySequence()
     transfinite_tail(nullptr) {}
 
 template <class T>
-LazySequence<T>::LazySequence(Sequence<T>* materialized, Cardinal length, Generator<T>* generator)
+LazySequence<T>::LazySequence(Sequence<T>* materialized, Cardinal length, BaseGenerator<T>* generator)
   : materialized(materialized),
     length(length),
     generator(generator),
@@ -136,7 +136,7 @@ LazySequence<T>::LazySequence(T (*recurrence)(Sequence<T>*), const Sequence<T> &
   materialized = copy_sequence(&initial);
 
   try {
-    generator = new Generator<T>(this, recurrence, materialized);
+    generator = new RuleGenerator<T>(recurrence, *materialized);
   } catch (...) {
     delete materialized;
     materialized = nullptr;
@@ -157,7 +157,7 @@ LazySequence<T>::LazySequence(std::function<T(Sequence<T>*)> recurrence, Sequenc
   materialized = copy_sequence(initial);
 
   try {
-    generator = new Generator<T>(this, recurrence, materialized, context_size);
+    generator = new RuleGenerator<T>(recurrence, *materialized, context_size);
   } catch (...) {
     delete materialized;
     materialized = nullptr;
@@ -172,7 +172,7 @@ LazySequence<T>::LazySequence(const LazySequence<T> &other)
     generator(nullptr),
     transfinite_tail(nullptr) {
   if (other.generator != nullptr) {
-    generator = new Generator<T>(*other.generator, this);
+    generator = other.generator->clone();
   }
 
   if (other.transfinite_tail != nullptr) {
@@ -395,13 +395,44 @@ LazySequence<T>* LazySequence<T>::insert_at(const T &item, int index) {
   LazySequence<T>* result = new LazySequence<T>(initial, Cardinal::infinity(), nullptr);
 
   try {
-    result->generator = new Generator<T>(
-      result,
-      this,
-      static_cast<std::size_t>(index),
-      item,
-      GeneratorChangeKind::Insert,
-      static_cast<std::size_t>(initial->get_length())
+    struct InsertItemRule {
+      LazySequence<T>* source;
+      std::size_t source_index;
+
+      InsertItemRule(LazySequence<T>* source, std::size_t source_index)
+        : source(new LazySequence<T>(*source)),
+          source_index(source_index) {}
+
+      InsertItemRule(const InsertItemRule &other)
+        : source(new LazySequence<T>(*other.source)),
+          source_index(other.source_index) {}
+
+      InsertItemRule& operator=(const InsertItemRule &other) {
+        if (this == &other) {
+          return *this;
+        }
+
+        delete source;
+        source = new LazySequence<T>(*other.source);
+        source_index = other.source_index;
+
+        return *this;
+      }
+
+      T operator()(Sequence<T>*) {
+        T next = source->get(static_cast<int>(source_index));
+        source_index++;
+        return next;
+      }
+
+      ~InsertItemRule() {
+        delete source;
+      }
+    };
+
+    result->generator = new RuleGenerator<T>(
+      InsertItemRule(this, static_cast<std::size_t>(index)),
+      *initial
     );
   } catch (...) {
     delete result;
@@ -472,14 +503,52 @@ LazySequence<T>* LazySequence<T>::remove_at(int index) {
   LazySequence<T>* result = new LazySequence<T>(initial, Cardinal::infinity(), nullptr);
 
   try {
-    // Генератор хранит копию исходной последовательности и пропускает удаляемый элемент
-    result->generator = new Generator<T>(
-      result,
-      this,
-      static_cast<std::size_t>(index),
-      GeneratorChangeKind::Remove,
-      0,
-      1
+    struct RemoveItemRule {
+      LazySequence<T>* source;
+      std::size_t source_index;
+      std::size_t remove_index;
+
+      RemoveItemRule(LazySequence<T>* source, std::size_t remove_index)
+        : source(new LazySequence<T>(*source)),
+          source_index(0),
+          remove_index(remove_index) {}
+
+      RemoveItemRule(const RemoveItemRule &other)
+        : source(new LazySequence<T>(*other.source)),
+          source_index(other.source_index),
+          remove_index(other.remove_index) {}
+
+      RemoveItemRule& operator=(const RemoveItemRule &other) {
+        if (this == &other) {
+          return *this;
+        }
+
+        delete source;
+        source = new LazySequence<T>(*other.source);
+        source_index = other.source_index;
+        remove_index = other.remove_index;
+
+        return *this;
+      }
+
+      T operator()(Sequence<T>*) {
+        if (source_index == remove_index) {
+          source_index++;
+        }
+
+        T next = source->get(static_cast<int>(source_index));
+        source_index++;
+        return next;
+      }
+
+      ~RemoveItemRule() {
+        delete source;
+      }
+    };
+
+    result->generator = new RuleGenerator<T>(
+      RemoveItemRule(this, static_cast<std::size_t>(index)),
+      *initial
     );
   } catch (...) {
     delete result;
@@ -534,13 +603,44 @@ LazySequence<T>* LazySequence<T>::concat(LazySequence<T>* other) {
   LazySequence<T>* result = new LazySequence<T>(initial, Cardinal::infinity(), nullptr);
 
   try {
-    // Генератор хранит копию правой последовательности и продолжает результат после левой части
-    result->generator = new Generator<T>(
-      result,
-      other,
-      left_length,
-      GeneratorChangeKind::Append,
-      left_length
+    struct ConcatRule {
+      LazySequence<T>* right;
+      std::size_t right_index;
+
+      explicit ConcatRule(LazySequence<T>* right)
+        : right(new LazySequence<T>(*right)),
+          right_index(0) {}
+
+      ConcatRule(const ConcatRule &other)
+        : right(new LazySequence<T>(*other.right)),
+          right_index(other.right_index) {}
+
+      ConcatRule& operator=(const ConcatRule &other) {
+        if (this == &other) {
+          return *this;
+        }
+
+        delete right;
+        right = new LazySequence<T>(*other.right);
+        right_index = other.right_index;
+
+        return *this;
+      }
+
+      T operator()(Sequence<T>*) {
+        T next = right->get(static_cast<int>(right_index));
+        right_index++;
+        return next;
+      }
+
+      ~ConcatRule() {
+        delete right;
+      }
+    };
+
+    result->generator = new RuleGenerator<T>(
+      ConcatRule(other),
+      *initial
     );
   } catch (...) {
     delete result;

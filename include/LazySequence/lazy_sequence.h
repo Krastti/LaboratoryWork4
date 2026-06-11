@@ -2,8 +2,9 @@
 #define LABORATORYWORK4_LAZY_SEQUENCE_H
 
 #include "../Sequence/sequence.h"
+#include "Generator/base_generator.h"
+#include "Generator/rule_generator.h"
 #include "cardinal.h"
-#include "generator.h.old"
 #include <cstddef>
 #include <functional>
 
@@ -11,7 +12,7 @@ template <class T> class LazySequence : public Sequence<T> {
 private:
   mutable Sequence<T> *materialized;
   Cardinal length;
-  mutable Generator<T> *generator;
+  mutable BaseGenerator<T> *generator;
   LazySequence<T> *transfinite_tail;
 
   /**
@@ -33,7 +34,7 @@ private:
    * Создает последовательность из уже подготовленных внутренних частей.
    * Конструктор забирает владение materialized и generator.
    */
-  LazySequence(Sequence<T> *materialized, Cardinal length, Generator<T> *generator);
+  LazySequence(Sequence<T> *materialized, Cardinal length, BaseGenerator<T> *generator);
 
   /*
    * Убранные методы из Sequence
