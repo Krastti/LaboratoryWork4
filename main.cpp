@@ -29,7 +29,6 @@ int main() {
 
   LazySequence<int>* inserted_lazy = left_lazy.insert_at(&right_lazy, Cardinal::omega());
 
-  std::cout << "LazySequence with transfinite insert\n";
   std::cout << "left[0] = " << inserted_lazy->get(0) << '\n';
   std::cout << "left[4] = " << inserted_lazy->get(4) << '\n';
   std::cout << "right[" << Cardinal::omega() << "] = " << inserted_lazy->get(Cardinal::omega()) << '\n';
