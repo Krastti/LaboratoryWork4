@@ -253,7 +253,7 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE, LPSTR, int show_command) {
     return static_cast<int>(message.wParam);
 }
 
-// Linux / macOS — X11 (Только базовый Xlib, без Xft и Fontconfig)
+// Linux / macOS — X11
 #else
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
