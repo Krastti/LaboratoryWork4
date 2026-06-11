@@ -1,6 +1,7 @@
 #ifndef LABORATORYWORK4_RULE_GENERATOR_TPP
 #define LABORATORYWORK4_RULE_GENERATOR_TPP
 
+#include "rule_generator.h"
 #include <cstddef>
 #include <stdexcept>
 
@@ -15,10 +16,22 @@ RuleGenerator<T>::RuleGenerator(Rule rule)
 
 template <class T>
 RuleGenerator<T>::RuleGenerator(Rule rule, const Sequence<T> &initial_context)
+  : RuleGenerator(
+      rule,
+      initial_context,
+      initial_context.get_length() > 0 ? static_cast<std::size_t>(initial_context.get_length()) : 1
+    ) {}
+
+template <class T>
+RuleGenerator<T>::RuleGenerator(Rule rule, const Sequence<T> &initial_context, std::size_t context_size)
   : rule(rule),
-    context(initial_context.get_length() > 0 ? static_cast<std::size_t>(initial_context.get_length()) : 1) {
+    context(context_size) {
   if (!rule) {
     throw std::invalid_argument("Правило генерации не может быть пустым");
+  }
+
+  if (context_size == 0) {
+    throw std::invalid_argument("Размер контекстного окна должен быть больше нуля");
   }
 
   for (int index = 0; index < initial_context.get_length(); index++) {

@@ -5,6 +5,7 @@
 #include "LazySequence/circular_buffer.h"
 #include "Sequence/sequence.h"
 
+#include <cstddef>
 #include <functional>
 
 /**
@@ -30,6 +31,11 @@ public:
    * во внутренний кольцевой контекст генерации.
    */
   RuleGenerator(Rule rule, const Sequence<T> &initial_context);
+
+  /**
+   * Создает генератор по функции-правилу и хранит только context_size последних элементов контекста.
+   */
+  RuleGenerator(Rule rule, const Sequence<T> &initial_context, std::size_t context_size);
 
   /**
    * Возвращает следующий элемент, вычисленный правилом, и добавляет его в контекст.
