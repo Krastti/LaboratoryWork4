@@ -93,13 +93,15 @@ template <class T>
 LazySequence<T>::LazySequence()
   : materialized(new MutableArraySequence<T>()),
     length(0),
-    generator(nullptr) {}
+    generator(nullptr),
+    transfinite_tail(nullptr) {}
 
 template <class T>
 LazySequence<T>::LazySequence(Sequence<T>* materialized, Cardinal length, Generator<T>* generator)
   : materialized(materialized),
     length(length),
-    generator(generator) {
+    generator(generator),
+    transfinite_tail(nullptr) {
   if (materialized == nullptr) {
     throw std::invalid_argument("Материализованная часть не может быть нулевой");
   }
@@ -109,13 +111,15 @@ template <class T>
 LazySequence<T>::LazySequence(const T* items, int count)
   : materialized(make_from_array(items, count)),
     length(static_cast<std::size_t>(count)),
-    generator(nullptr) {}
+    generator(nullptr),
+    transfinite_tail(nullptr) {}
 
 template <class T>
 LazySequence<T>::LazySequence(Sequence<T>* seq)
   : materialized(copy_sequence(seq)),
     length(0),
-    generator(nullptr) {
+    generator(nullptr),
+    transfinite_tail(nullptr) {
   length = Cardinal(static_cast<std::size_t>(materialized->get_length()));
 }
 
@@ -123,7 +127,8 @@ template <class T>
 LazySequence<T>::LazySequence(T (*recurrence)(Sequence<T>*), const Sequence<T> &initial)
   : materialized(nullptr),
     length(Cardinal::infinity()),
-    generator(nullptr) {
+    generator(nullptr),
+    transfinite_tail(nullptr) {
   if (recurrence == nullptr) {
     throw std::invalid_argument("Порождающее правило не может быть нулевым");
   }
@@ -143,7 +148,8 @@ template <class T>
 LazySequence<T>::LazySequence(std::function<T(Sequence<T>*)> recurrence, Sequence<T>* initial, std::size_t context_size)
   : materialized(nullptr),
     length(Cardinal::infinity()),
-    generator(nullptr) {
+    generator(nullptr),
+    transfinite_tail(nullptr) {
   if (!recurrence) {
     throw std::invalid_argument("Порождающее правило не может быть пустым");
   }
@@ -163,9 +169,14 @@ template <class T>
 LazySequence<T>::LazySequence(const LazySequence<T> &other)
   : materialized(copy_sequence(other.materialized)),
     length(other.length),
-    generator(nullptr) {
+    generator(nullptr),
+    transfinite_tail(nullptr) {
   if (other.generator != nullptr) {
     generator = new Generator<T>(*other.generator, this);
+  }
+
+  if (other.transfinite_tail != nullptr) {
+    transfinite_tail = new LazySequence<T>(*other.transfinite_tail);
   }
 }
 
@@ -191,6 +202,27 @@ template <class T>
 const T& LazySequence<T>::get(int index) const {
   materialize_until(index);
   return materialized->get(index);
+}
+
+template <class T>
+const T& LazySequence<T>::get(const Cardinal &index) const {
+  if (index.is_finite()) {
+    if (index.value() > static_cast<std::size_t>(std::numeric_limits<int>::max())) {
+      throw std::overflow_error("Индекс LazySequence не помещается в int");
+    }
+
+    return get(static_cast<int>(index.value()));
+  }
+
+  if (transfinite_tail == nullptr) {
+    throw std::out_of_range("Трансфинитный индекс вне допустимого диапазона");
+  }
+
+  if (index.omega_offset() > static_cast<std::size_t>(std::numeric_limits<int>::max())) {
+    throw std::overflow_error("Смещение после omega не помещается в int");
+  }
+
+  return transfinite_tail->get(static_cast<int>(index.omega_offset()));
 }
 
 template <class T>
@@ -220,7 +252,16 @@ template <class T>
 Option<T> LazySequence<T>::try_get(int index) const {
   try {
     return Option<T>::some(get(index));
-  } catch (const std::out_of_range&) {
+  } catch (const std::exception&) {
+    return Option<T>::none();
+  }
+}
+
+template <class T>
+Option<T> LazySequence<T>::try_get(const Cardinal &index) const {
+  try {
+    return Option<T>::some(get(index));
+  } catch (const std::exception&) {
     return Option<T>::none();
   }
 }
@@ -366,6 +407,31 @@ LazySequence<T>* LazySequence<T>::insert_at(const T &item, int index) {
     delete result;
     throw;
   }
+
+  return result;
+}
+
+template <class T>
+LazySequence<T>* LazySequence<T>::insert_at(LazySequence<T> *items, const Cardinal &index) {
+  if (items == nullptr) {
+    throw std::invalid_argument("Нельзя вставить нулевую LazySequence");
+  }
+
+  if (index.is_finite()) {
+    throw std::logic_error("Вставка LazySequence по конечному индексу пока не поддерживается");
+  }
+
+  if (index.omega_offset() != 0) {
+    throw std::out_of_range("Вставка поддерживается только по индексу omega");
+  }
+
+  if (length.is_finite()) {
+    throw std::out_of_range("Индекс omega вне конечной LazySequence");
+  }
+
+  LazySequence<T>* result = new LazySequence<T>(*this);
+  delete result->transfinite_tail;
+  result->transfinite_tail = new LazySequence<T>(*items);
 
   return result;
 }
@@ -790,6 +856,7 @@ LazySequence<Pair<T, T2>>* LazySequence<T>::zip(LazySequence<T2>* seq) {
 
 template <class T>
 LazySequence<T>::~LazySequence() {
+  delete transfinite_tail;
   delete generator;
   delete materialized;
 }

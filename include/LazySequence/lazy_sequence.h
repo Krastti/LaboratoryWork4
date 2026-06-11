@@ -3,7 +3,7 @@
 
 #include "../Sequence/sequence.h"
 #include "cardinal.h"
-#include "generator.h"
+#include "generator.h.old"
 #include <cstddef>
 #include <functional>
 
@@ -12,6 +12,7 @@ private:
   mutable Sequence<T> *materialized;
   Cardinal length;
   mutable Generator<T> *generator;
+  LazySequence<T> *transfinite_tail;
 
   /**
    * Данный метод нужен для того, чтобы создавать новый MutableArraySequence, но с
@@ -71,11 +72,13 @@ public:
   const T &get_first() const override;
   const T &get_last() const override;
   const T &get(int index) const override;
+  const T &get(const Cardinal &index) const;
   const T &operator[](int index) const override;
 
   Option<T> try_get_first() const override;
   Option<T> try_get_last() const override;
   Option<T> try_get(int index) const override;
+  Option<T> try_get(const Cardinal &index) const;
 
   Sequence<T> *get_sub_sequence(int startIndex, int endIndex) const override;
 
@@ -87,6 +90,7 @@ public:
   LazySequence<T> *append(const T &item) override;
   LazySequence<T> *prepend(const T &item) override;
   LazySequence<T> *insert_at(const T &item, int index) override;
+  LazySequence<T> *insert_at(LazySequence<T> *items, const Cardinal &index);
 
   LazySequence<T> *remove_at(int index);
   LazySequence<T> *concat(LazySequence<T> *other);
