@@ -7,7 +7,13 @@
 
 inline std::ostream& operator<<(std::ostream &stream, const Cardinal &cardinal) {
   if (cardinal.is_infinite()) {
-    return stream << "infinity";
+    stream << "omega";
+
+    if (cardinal.omega_offset() > 0) {
+      stream << " + " << cardinal.omega_offset();
+    }
+
+    return stream;
   }
 
   return stream << cardinal.value();
