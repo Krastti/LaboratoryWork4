@@ -26,18 +26,33 @@ target_include_directories(LaboratoryWork4Tests
     ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
-add_executable(TurnstileInterface WIN32
-        interface/turnstile_window.cpp
-        src/state_machine.cpp
-)
+if(WIN32)
+  add_executable(TurnstileInterface WIN32
+          interface/turnstile_window.cpp
+          src/state_machine.cpp
+  )
+  target_link_libraries(TurnstileInterface
+          PRIVATE
+          user32
+          gdi32
+  )
+else()
+  add_executable(TurnstileInterface
+          interface/turnstile_window.cpp
+          src/state_machine.cpp
+  )
+  find_package(X11 REQUIRED)
+  target_link_libraries(TurnstileInterface
+          PRIVATE
+          ${X11_LIBRARIES}
+  )
+  target_include_directories(TurnstileInterface
+          PRIVATE
+          ${X11_INCLUDE_DIR}
+  )
+endif()
 
 target_include_directories(TurnstileInterface
         PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/include
-)
-
-target_link_libraries(TurnstileInterface
-        PRIVATE
-        user32
-        gdi32
 )
