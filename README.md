@@ -19,6 +19,12 @@ cmake --build build --target LaboratoryWork4
 cmake --build build --target TurnstileInterface
 ```
 
+Пример работы конфигуратора
+
+```bash
+cmake --build build --target ConfiguratorExample
+```
+
 Unit Tests:
 
 ```bash

@@ -120,6 +120,16 @@ public:
   int get_transition_count() const;
 
   /**
+   * Возвращает зарегистрированные переходы автомата
+   */
+  const Sequence<Pair<Pair<int, int>, Transition>>* get_transitions() const;
+
+  /**
+   * Возвращает начальное состояние автомата
+   */
+  const State& get_initial_state() const;
+
+  /**
    * Возвращает признак открытия машины
    */
   bool get_is_open() const;

@@ -26,6 +26,18 @@ target_include_directories(LaboratoryWork4Tests
     ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
+add_executable(ConfiguratorExample
+  configurator/example.cpp
+  configurator/configurator.cpp
+  src/state_machine.cpp
+)
+
+target_include_directories(ConfiguratorExample
+  PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/configurator
+)
+
 if(WIN32)
   add_executable(TurnstileInterface WIN32
           interface/turnstile_window.cpp

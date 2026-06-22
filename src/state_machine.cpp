@@ -229,6 +229,18 @@ int StateMachine::get_transition_count() const {
   return transitions->get_length();
 }
 
+const Sequence<Pair<Pair<int, int>, Transition>>* StateMachine::get_transitions() const {
+  return transitions;
+}
+
+const State& StateMachine::get_initial_state() const {
+  if (!has_initial_state) {
+    throw std::logic_error("Начальное состояние не задано");
+  }
+
+  return initial_state;
+}
+
 bool StateMachine::get_is_open() const {
   return is_open;
 }
