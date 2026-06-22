@@ -8,9 +8,6 @@ public:
 
   static void export_to_file(const StateMachine &machine, const char* file_path);
 
-  /**
-   * Загружает автомат из файла без восстановления функций-действий
-   */
   static StateMachine import_from_file(const char* file_path);
 };
 
