@@ -5,9 +5,7 @@
 
 class StateMachineConfigurator {
 public:
-  /**
-   * Сохраняет состояния, начальное состояние и переходы автомата в файл
-   */
+
   static void export_to_file(const StateMachine &machine, const char* file_path);
 
   /**

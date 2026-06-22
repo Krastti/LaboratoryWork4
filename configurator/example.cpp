@@ -19,12 +19,16 @@ int main() {
   original.add_transition(Transition(locked, push, locked, "deny"));
 
   StateMachineConfigurator::export_to_file(original, config_path);
+
   StateMachine restored = StateMachineConfigurator::import_from_file(config_path);
 
   restored.open();
   restored.process_event(coin);
   std::cout << "Current state: " << restored.get_current_state().name << '\n';
   restored.process_event(push);
+  restored.process_event(push);
+  std::cout << "Current state: " << restored.get_current_state().name << '\n';
+  restored.process_event(coin);
   std::cout << "Current state: " << restored.get_current_state().name << '\n';
   restored.close();
 
