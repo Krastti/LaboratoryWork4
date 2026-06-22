@@ -7,7 +7,7 @@
 #include "../include/Stream/file_in_stream.h"
 #include "../include/Stream/file_out_stream.h"
 
-namespace {
+namespace ConfiguratorFileFormat {
 std::string write_line(const std::string &line) {
   return line;
 }
@@ -72,7 +72,7 @@ Transition read_transition(FileInStream<std::string> &input) {
 }
 
 void StateMachineConfigurator::export_to_file(const StateMachine &machine, const char* file_path) {
-  FileOutStream<std::string> output(file_path, write_line);
+  FileOutStream<std::string> output(file_path, ConfiguratorFileFormat::write_line);
   output.open();
 
   const Sequence<State>* states = machine.get_states();
@@ -107,17 +107,17 @@ StateMachine StateMachineConfigurator::import_from_file(const char* file_path) {
   input.open();
 
   StateMachine machine;
-  int state_count = read_count(input, "states");
+  int state_count = ConfiguratorFileFormat::read_count(input, "states");
 
   for (int i = 0; i < state_count; i++) {
-    machine.add_state(read_state(input, "state"));
+    machine.add_state(ConfiguratorFileFormat::read_state(input, "state"));
   }
 
-  machine.set_initial_state(read_state(input, "initial"));
-  int transition_count = read_count(input, "transitions");
+  machine.set_initial_state(ConfiguratorFileFormat::read_state(input, "initial"));
+  int transition_count = ConfiguratorFileFormat::read_count(input, "transitions");
 
   for (int i = 0; i < transition_count; i++) {
-    machine.add_transition(read_transition(input));
+    machine.add_transition(ConfiguratorFileFormat::read_transition(input));
   }
 
   input.close();
